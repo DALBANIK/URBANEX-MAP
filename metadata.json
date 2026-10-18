@@ -1,0 +1,6 @@
+{
+  "name": "uexmap",
+  "description": "uexmap — інтерактивна карта міток з модерацією, навігацією та викликом таксі",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

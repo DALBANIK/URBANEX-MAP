@@ -1,0 +1,46 @@
+{
+  "entities": {
+    "Marker": {
+      "title": "Map Marker",
+      "description": "A user-submitted map point of interest undergoing moderation",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "description": "Title or place name" },
+        "description": { "type": "string", "description": "Details about the location" },
+        "category": { "type": "string", "description": "Category: tourism, food, nature, history, hazard, other" },
+        "latitude": { "type": "number", "description": "Latitude coordinate" },
+        "longitude": { "type": "number", "description": "Longitude coordinate" },
+        "userId": { "type": "string", "description": "UID of the author" },
+        "userEmail": { "type": "string", "description": "Email of author" },
+        "authorName": { "type": "string", "description": "Display name of author" },
+        "status": { "type": "string", "description": "pending, approved, or rejected" },
+        "moderatorNote": { "type": "string", "description": "Optional notes from moderator" },
+        "moderatedBy": { "type": "string", "description": "UID or email of moderator" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Creation timestamp via serverTimestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Update timestamp via serverTimestamp" }
+      },
+      "required": ["title", "description", "category", "latitude", "longitude", "userId", "userEmail", "authorName", "status", "createdAt", "updatedAt"]
+    },
+    "Admin": {
+      "title": "Admin Record",
+      "description": "Indicates administrative and moderator privileges",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "role": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["email", "role"]
+    }
+  },
+  "firestore": {
+    "/markers/{markerId}": {
+      "schema": "Marker",
+      "description": "Collection of all crowd-sourced map markers with moderation status"
+    },
+    "/admins/{adminId}": {
+      "schema": "Admin",
+      "description": "Collection of designated administrators and moderators"
+    }
+  }
+}

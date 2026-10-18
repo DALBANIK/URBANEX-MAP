@@ -1,0 +1,116 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default deny all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        ('email' in request.auth.token && (
+          request.auth.token.email == 'slonecdaniil1922@gmail.com' ||
+          request.auth.token.email == 'daniilslonec2000@gmail.com' ||
+          request.auth.token.email == 'tancikozenden@gmail.com'
+        )) ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isValidMarker(data) {
+      return data.title is string && data.title.size() >= 1 && data.title.size() <= 100 &&
+             data.description is string && data.description.size() <= 1000 &&
+             data.category is string && data.category in ['tourism', 'food', 'nature', 'history', 'hazard', 'other'] &&
+             (data.latitude is number || data.latitude is int || data.latitude is float) && data.latitude >= -90.0 && data.latitude <= 90.0 &&
+             (data.longitude is number || data.longitude is int || data.longitude is float) && data.longitude >= -180.0 && data.longitude <= 180.0 &&
+             data.userId is string && data.userId.size() <= 128 &&
+             data.userEmail is string && data.userEmail.size() <= 128 &&
+             data.authorName is string && data.authorName.size() <= 128 &&
+             data.status is string && data.status in ['pending', 'approved', 'rejected'] &&
+             (!('moderatorNote' in data) || (data.moderatorNote is string && data.moderatorNote.size() <= 500)) &&
+             (!('moderatedBy' in data) || (data.moderatedBy is string && data.moderatedBy.size() <= 128)) &&
+             (!('imageUrl' in data) || (data.imageUrl is string && data.imageUrl.size() <= 65000)) &&
+             (!('markerSkin' in data) || (data.markerSkin is string && data.markerSkin.size() <= 64));
+    }
+
+    match /markers/{markerId} {
+      allow get: if isSignedIn() && isValidId(markerId) && (
+        existing().status == 'approved' ||
+        existing().userId == request.auth.uid ||
+        isAdmin()
+      );
+
+      allow list: if isSignedIn() && (
+        existing().status == 'approved' ||
+        existing().userId == request.auth.uid ||
+        isAdmin()
+      );
+
+      allow create: if isSignedIn() && isValidId(markerId) &&
+                       incoming().userId == request.auth.uid &&
+                       incoming().status == 'pending' &&
+                       incoming().keys().hasAll(['title', 'description', 'category', 'latitude', 'longitude', 'userId', 'userEmail', 'authorName', 'status', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['title', 'description', 'category', 'latitude', 'longitude', 'userId', 'userEmail', 'authorName', 'status', 'moderatorNote', 'moderatedBy', 'imageUrl', 'markerSkin', 'createdAt', 'updatedAt']) &&
+                       incoming().createdAt is timestamp && incoming().createdAt <= request.time &&
+                       incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+                       isValidMarker(incoming());
+
+      allow update: if isSignedIn() && isValidId(markerId) && isValidMarker(incoming()) && (
+        // Author editing pending marker
+        (
+          incoming().userId == existing().userId &&
+          incoming().userId == request.auth.uid &&
+          existing().status == 'pending' &&
+          incoming().status == 'pending' &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['title', 'description', 'category', 'latitude', 'longitude', 'imageUrl', 'markerSkin', 'updatedAt'])
+        ) ||
+        // Moderator approving/rejecting marker
+        (
+          isAdmin() &&
+          incoming().userId == existing().userId &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['status', 'moderatorNote', 'moderatedBy', 'updatedAt'])
+        )
+      );
+
+      allow delete: if isSignedIn() && isValidId(markerId) && (
+        existing().userId == request.auth.uid ||
+        isAdmin()
+      );
+    }
+
+    match /users/{userId} {
+      allow get: if isSignedIn() && isValidId(userId);
+      allow list: if isSignedIn();
+      allow create, update: if isSignedIn() && isValidId(userId) && (
+        userId == request.auth.uid || isAdmin()
+      );
+      allow delete: if isAdmin();
+    }
+
+    match /admins/{adminId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin() && isValidId(adminId);
+    }
+  }
+}
